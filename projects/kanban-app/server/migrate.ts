@@ -14,6 +14,26 @@ export function runMigrations(): void {
     for (const sql of CREATE_INDEXES) {
       db.exec(sql);
     }
+
+    // Ensure escrow columns exist on cards table
+    const tableInfo = db.prepare("PRAGMA table_info('cards')").all() as Array<{ name: string }>;
+    const existingCols = new Set(tableInfo.map(col => col.name));
+
+    const extraCols: Array<[string, string]> = [
+      ['bounty_algo', 'REAL DEFAULT 0'],
+      ['creator_wallet', "TEXT DEFAULT ''"],
+      ['assignee_wallet', "TEXT DEFAULT ''"],
+      ['escrow_app_id', "TEXT DEFAULT ''"],
+      ['deposit_tx_id', "TEXT DEFAULT ''"],
+      ['release_tx_id', "TEXT DEFAULT ''"],
+      ['refund_tx_id', "TEXT DEFAULT ''"],
+    ];
+
+    for (const [colName, colType] of extraCols) {
+      if (!existingCols.has(colName)) {
+        db.exec(`ALTER TABLE cards ADD COLUMN ${colName} ${colType};`);
+      }
+    }
   });
 
   transaction();

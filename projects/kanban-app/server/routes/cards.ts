@@ -20,15 +20,42 @@ router.get('/', (req, res) => {
 
 // POST /api/cards — create card
 router.post('/', (req, res) => {
-  const { column_id, board_id, title, description = '', priority = 'medium' } = req.body;
+  const {
+    column_id,
+    board_id,
+    title,
+    description = '',
+    priority = 'medium',
+    bounty_algo = 0,
+    creator_wallet = '',
+    assignee_wallet = '',
+    escrow_app_id = '',
+  } = req.body;
+
   if (!column_id || !board_id || !title) {
     return res.status(400).json({ error: 'column_id, board_id, and title are required' });
   }
 
   const maxPos = db.prepare('SELECT MAX(position) as max FROM cards WHERE column_id = ?').get(column_id) as any;
   const id = uuidv4();
-  db.prepare('INSERT INTO cards (id, column_id, board_id, title, description, position, priority) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(id, column_id, board_id, title, description, (maxPos?.max ?? -1) + 1, priority);
+  db.prepare(`
+    INSERT INTO cards (
+      id, column_id, board_id, title, description, position, priority,
+      bounty_algo, creator_wallet, assignee_wallet, escrow_app_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    column_id,
+    board_id,
+    title,
+    description,
+    (maxPos?.max ?? -1) + 1,
+    priority,
+    bounty_algo,
+    creator_wallet,
+    assignee_wallet,
+    escrow_app_id
+  );
 
   const card = db.prepare('SELECT * FROM cards WHERE id = ?').get(id);
   res.status(201).json(card);
@@ -36,7 +63,25 @@ router.post('/', (req, res) => {
 
 // PATCH /api/cards/:cardId — update card
 router.patch('/:cardId', (req, res) => {
-  const { title, description, column_id, position, priority, status, assignee, due_date, tags } = req.body;
+  const {
+    title,
+    description,
+    column_id,
+    position,
+    priority,
+    status,
+    assignee,
+    due_date,
+    tags,
+    bounty_algo,
+    creator_wallet,
+    assignee_wallet,
+    escrow_app_id,
+    deposit_tx_id,
+    release_tx_id,
+    refund_tx_id,
+  } = req.body;
+
   const card = db.prepare('SELECT * FROM cards WHERE id = ?').get(req.params.cardId);
   if (!card) return res.status(404).json({ error: 'Card not found' });
 
@@ -65,8 +110,41 @@ router.patch('/:cardId', (req, res) => {
   }
 
   // Update other fields
-  db.prepare("UPDATE cards SET title = COALESCE(?, title), description = COALESCE(?, description), priority = COALESCE(?, priority), status = COALESCE(?, status), assignee = COALESCE(?, assignee), due_date = COALESCE(?, due_date), tags = COALESCE(?, tags), updated_at = datetime('now') WHERE id = ?")
-    .run(title ?? null, description ?? null, priority ?? null, status ?? null, assignee ?? null, due_date ?? null, tags ?? null, req.params.cardId);
+  db.prepare(`
+    UPDATE cards SET 
+      title = COALESCE(?, title),
+      description = COALESCE(?, description),
+      priority = COALESCE(?, priority),
+      status = COALESCE(?, status),
+      assignee = COALESCE(?, assignee),
+      due_date = COALESCE(?, due_date),
+      tags = COALESCE(?, tags),
+      bounty_algo = COALESCE(?, bounty_algo),
+      creator_wallet = COALESCE(?, creator_wallet),
+      assignee_wallet = COALESCE(?, assignee_wallet),
+      escrow_app_id = COALESCE(?, escrow_app_id),
+      deposit_tx_id = COALESCE(?, deposit_tx_id),
+      release_tx_id = COALESCE(?, release_tx_id),
+      refund_tx_id = COALESCE(?, refund_tx_id),
+      updated_at = datetime('now')
+    WHERE id = ?
+  `).run(
+    title ?? null,
+    description ?? null,
+    priority ?? null,
+    status ?? null,
+    assignee ?? null,
+    due_date ?? null,
+    tags ?? null,
+    bounty_algo ?? null,
+    creator_wallet ?? null,
+    assignee_wallet ?? null,
+    escrow_app_id ?? null,
+    deposit_tx_id ?? null,
+    release_tx_id ?? null,
+    refund_tx_id ?? null,
+    req.params.cardId
+  );
 
   const updated = db.prepare('SELECT * FROM cards WHERE id = ?').get(req.params.cardId);
   res.json(updated);
@@ -82,6 +160,69 @@ router.delete('/:cardId', (req, res) => {
     .run(card.column_id, card.position);
 
   res.json({ ok: true });
+});
+
+// POST /api/cards/:cardId/deposit — record on-chain escrow funding
+router.post('/:cardId/deposit', (req, res) => {
+  const { escrow_app_id, creator_wallet, bounty_algo, deposit_tx_id } = req.body;
+  const card = db.prepare('SELECT * FROM cards WHERE id = ?').get(req.params.cardId);
+  if (!card) return res.status(404).json({ error: 'Card not found' });
+
+  db.prepare(`
+    UPDATE cards SET 
+      escrow_app_id = COALESCE(?, escrow_app_id),
+      creator_wallet = COALESCE(?, creator_wallet),
+      bounty_algo = COALESCE(?, bounty_algo),
+      deposit_tx_id = COALESCE(?, deposit_tx_id),
+      updated_at = datetime('now')
+    WHERE id = ?
+  `).run(escrow_app_id ?? null, creator_wallet ?? null, bounty_algo ?? null, deposit_tx_id ?? null, req.params.cardId);
+
+  const updated = db.prepare('SELECT * FROM cards WHERE id = ?').get(req.params.cardId);
+  res.json(updated);
+});
+
+// POST /api/cards/:cardId/claim — bind user wallet to task
+router.post('/:cardId/claim', (req, res) => {
+  const { assignee_wallet } = req.body;
+  if (!assignee_wallet || typeof assignee_wallet !== 'string') {
+    return res.status(400).json({ error: 'assignee_wallet address is required' });
+  }
+
+  const card = db.prepare('SELECT * FROM cards WHERE id = ?').get(req.params.cardId);
+  if (!card) return res.status(404).json({ error: 'Card not found' });
+
+  db.prepare("UPDATE cards SET assignee_wallet = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(assignee_wallet, req.params.cardId);
+
+  const updated = db.prepare('SELECT * FROM cards WHERE id = ?').get(req.params.cardId);
+  res.json(updated);
+});
+
+// POST /api/cards/:cardId/release — approve completion & record release tx
+router.post('/:cardId/release', (req, res) => {
+  const { release_tx_id } = req.body;
+  const card = db.prepare('SELECT * FROM cards WHERE id = ?').get(req.params.cardId);
+  if (!card) return res.status(404).json({ error: 'Card not found' });
+
+  db.prepare("UPDATE cards SET release_tx_id = ?, status = 'done', updated_at = datetime('now') WHERE id = ?")
+    .run(release_tx_id || 'RELEASE_VERIFIED', req.params.cardId);
+
+  const updated = db.prepare('SELECT * FROM cards WHERE id = ?').get(req.params.cardId);
+  res.json(updated);
+});
+
+// POST /api/cards/:cardId/refund — cancel task & record refund tx
+router.post('/:cardId/refund', (req, res) => {
+  const { refund_tx_id } = req.body;
+  const card = db.prepare('SELECT * FROM cards WHERE id = ?').get(req.params.cardId);
+  if (!card) return res.status(404).json({ error: 'Card not found' });
+
+  db.prepare("UPDATE cards SET refund_tx_id = ?, status = 'cancelled', updated_at = datetime('now') WHERE id = ?")
+    .run(refund_tx_id || 'REFUND_VERIFIED', req.params.cardId);
+
+  const updated = db.prepare('SELECT * FROM cards WHERE id = ?').get(req.params.cardId);
+  res.json(updated);
 });
 
 export default router;

@@ -13,6 +13,8 @@ const CreateCard: React.FC<CreateCardProps> = ({ boardId, columnId, onClose, onC
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
+  const [bountyAlgo, setBountyAlgo] = useState('');
+  const [assigneeWallet, setAssigneeWallet] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,7 +23,18 @@ const CreateCard: React.FC<CreateCardProps> = ({ boardId, columnId, onClose, onC
 
     setSubmitting(true);
     try {
-      await createCard({ columnId, boardId, title: title.trim(), description, priority });
+      const bounty = parseFloat(bountyAlgo);
+      await createCard({
+        columnId,
+        boardId,
+        title: title.trim(),
+        description,
+        priority,
+        bounty_algo: !isNaN(bounty) && bounty > 0 ? bounty : 0,
+        creator_wallet: 'CREATOR_ALGO_WALLET_DEFAULT',
+        assignee_wallet: assigneeWallet.trim() || undefined,
+        escrow_app_id: !isNaN(bounty) && bounty > 0 ? `ESCROW_${Date.now().toString(36)}` : undefined,
+      });
       onCreated();
       onClose();
     } catch (err) {
@@ -49,12 +62,29 @@ const CreateCard: React.FC<CreateCardProps> = ({ boardId, columnId, onClose, onC
             onChange={e => setDescription(e.target.value)}
             rows={3}
           />
-          <select value={priority} onChange={e => setPriority(e.target.value as any)}>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="urgent">Urgent</option>
-          </select>
+          <div className="create-card-field-row">
+            <select value={priority} onChange={e => setPriority(e.target.value as any)}>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+            <input
+              type="number"
+              step="any"
+              min="0"
+              placeholder="Bounty (ALGO)"
+              value={bountyAlgo}
+              onChange={e => setBountyAlgo(e.target.value)}
+              className="bounty-input"
+            />
+          </div>
+          <input
+            type="text"
+            placeholder="Assignee Algorand Wallet Address (optional)"
+            value={assigneeWallet}
+            onChange={e => setAssigneeWallet(e.target.value)}
+          />
           <div className="create-card-actions">
             <button type="button" onClick={onClose}>Cancel</button>
             <button type="submit" disabled={submitting || !title.trim()}>

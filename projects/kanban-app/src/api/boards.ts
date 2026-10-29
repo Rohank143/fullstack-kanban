@@ -1,4 +1,4 @@
-import type { Board, CreateBoardRequest, UpdateBoardRequest } from '../types';
+import type { Board, BoardWithColumns, CreateBoardRequest, UpdateBoardRequest } from '../types';
 
 const API_BASE = '/api';
 
@@ -8,7 +8,7 @@ export async function getBoards(): Promise<Board[]> {
   return res.json();
 }
 
-export async function getBoard(id: string): Promise<Board> {
+export async function getBoard(id: string): Promise<BoardWithColumns> {
   const res = await fetch(`${API_BASE}/boards/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch board: ${res.statusText}`);
   return res.json();

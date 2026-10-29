@@ -40,7 +40,52 @@ export async function deleteCard(id: string): Promise<void> {
 
 export async function moveCard(id: string, data: MoveCardRequest): Promise<Card> {
   return updateCard(id, {
-    columnId: data.targetColumnId,
-    // position handled by backend
+    column_id: data.targetColumnId,
+    position: data.targetPosition,
   });
+}
+
+export async function releaseCardBounty(id: string, releaseTxId?: string): Promise<Card> {
+  const res = await fetch(`${API_BASE}/cards/${id}/release`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ release_tx_id: releaseTxId }),
+  });
+  if (!res.ok) throw new Error(`Failed to release bounty: ${res.statusText}`);
+  return res.json();
+}
+
+export async function refundCardBounty(id: string, refundTxId?: string): Promise<Card> {
+  const res = await fetch(`${API_BASE}/cards/${id}/refund`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refund_tx_id: refundTxId }),
+  });
+  if (!res.ok) throw new Error(`Failed to refund bounty: ${res.statusText}`);
+  return res.json();
+}
+
+export async function depositCardBounty(id: string, data: {
+  escrow_app_id: string;
+  creator_wallet: string;
+  bounty_algo: number;
+  deposit_tx_id: string;
+}): Promise<Card> {
+  const res = await fetch(`${API_BASE}/cards/${id}/deposit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`Failed to deposit bounty: ${res.statusText}`);
+  return res.json();
+}
+
+export async function claimCardBounty(id: string, assignee_wallet: string): Promise<Card> {
+  const res = await fetch(`${API_BASE}/cards/${id}/claim`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ assignee_wallet }),
+  });
+  if (!res.ok) throw new Error(`Failed to claim bounty: ${res.statusText}`);
+  return res.json();
 }

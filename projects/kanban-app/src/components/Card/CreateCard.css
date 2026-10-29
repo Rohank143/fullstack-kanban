@@ -13,7 +13,7 @@
   border-radius: 12px;
   padding: 24px;
   width: 100%;
-  max-width: 400px;
+  max-width: 440px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
 }
 
@@ -36,8 +36,22 @@
   box-sizing: border-box;
 }
 
+.create-card-field-row {
+  display: flex;
+  gap: 12px;
+}
+
+.create-card-field-row select {
+  flex: 1;
+}
+
+.create-card-field-row input.bounty-input {
+  flex: 1.2;
+}
+
 .create-card-modal input:focus,
-.create-card-modal textarea:focus {
+.create-card-modal textarea:focus,
+.create-card-modal select:focus {
   outline: none;
   border-color: var(--accent, #3b82f6);
   box-shadow: 0 0 0 3px var(--accent-bg, #dbeafe);

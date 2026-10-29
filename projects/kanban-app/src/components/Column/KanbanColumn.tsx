@@ -1,16 +1,17 @@
 import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import type { ColumnWithCards } from '../../types';
+import type { ColumnWithCards, Card } from '../../types';
 import KanbanCard from '../Card/KanbanCard';
 import './KanbanColumn.css';
 
 interface KanbanColumnProps {
   column: ColumnWithCards;
   onCreateCard: () => void;
+  onRefundCard?: (card: Card) => void;
 }
 
-const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, onCreateCard }) => {
+const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, onCreateCard, onRefundCard }) => {
   const { setNodeRef } = useDroppable({ id: column.id });
 
   return (
@@ -22,7 +23,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, onCreateCard }) => 
       <SortableContext items={column.cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
         <div className="column-cards">
           {column.cards.map(card => (
-            <KanbanCard key={card.id} card={card} />
+            <KanbanCard key={card.id} card={card} onRefundClick={onRefundCard} />
           ))}
         </div>
       </SortableContext>

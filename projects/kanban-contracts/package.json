@@ -1,0 +1,12 @@
+{
+  "name": "kanban-contracts",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/bountyEscrow.test.mjs"
+  },
+  "dependencies": {
+    "@algorandfoundation/tealscript": "^0.106.0",
+    "algosdk": "^3.0.0"
+  }
+}

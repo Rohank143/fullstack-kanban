@@ -29,6 +29,13 @@ export interface Card {
   dueDate: string | null;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   tags: string;
+  bounty_algo?: number;
+  creator_wallet?: string;
+  assignee_wallet?: string;
+  escrow_app_id?: string;
+  deposit_tx_id?: string;
+  release_tx_id?: string;
+  refund_tx_id?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -65,16 +72,29 @@ export interface CreateCardRequest {
   dueDate?: string;
   priority?: Card['priority'];
   tags?: string;
+  bounty_algo?: number;
+  creator_wallet?: string;
+  assignee_wallet?: string;
+  escrow_app_id?: string;
 }
 
 export interface UpdateCardRequest {
   title?: string;
   description?: string;
+  column_id?: string;
+  position?: number;
   status?: string;
   assignee?: string;
   dueDate?: string;
   priority?: Card['priority'];
   tags?: string;
+  bounty_algo?: number;
+  creator_wallet?: string;
+  assignee_wallet?: string;
+  escrow_app_id?: string;
+  deposit_tx_id?: string;
+  release_tx_id?: string;
+  refund_tx_id?: string;
 }
 
 export interface MoveCardRequest {
